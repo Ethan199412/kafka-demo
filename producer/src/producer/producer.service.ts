@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Admin, Kafka, Producer } from 'kafkajs';
+import { Admin, Kafka, Producer, ProducerRecord } from 'kafkajs';
 
 @Injectable()
 export class ProducerService {
@@ -24,10 +24,20 @@ export class ProducerService {
     return topics;
   }
 
-  async createTopic(topic: string) {
+  async createTopic(topic: string, partition: number, replicas: number) {
     await this.admin.connect();
     await this.admin.createTopics({
-      topics: [{ topic }],
+      topics: [
+        { topic, numPartitions: partition, replicationFactor: replicas },
+      ],
+    });
+    await this.admin.disconnect();
+  }
+
+  async deleteTopic(topic: string) {
+    await this.admin.connect();
+    await this.admin.deleteTopics({
+      topics: [topic],
     });
     await this.admin.disconnect();
   }
@@ -36,8 +46,17 @@ export class ProducerService {
     await this.producer.connect();
     await this.producer.send({
       topic: 'topic1',
-      messages: [{ value: message }],
-    });
+      messages: [{ value: message, partition: 0 }],
+    } as ProducerRecord);
+    await this.producer.disconnect();
+  }
+
+  async send(topic: string, message: string, partition) {
+    await this.producer.connect();
+    await this.producer.send({
+      topic,
+      messages: [{ value: message, partition }],
+    } as ProducerRecord);
     await this.producer.disconnect();
   }
 }
